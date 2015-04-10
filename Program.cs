@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,14 +8,13 @@ using Microsoft.Kinect;
 
 namespace KinectSkeletonData
 {
-    enum State { Calibrate, Run };
-
     class Program
     {
-        public static State state = State.Calibrate;
         public static KinectSensor sensor;
         public static Timer timer;
         public static bool reset = true;
+        public static int calibrated = 3;
+        public static float[,] calibration= new float[3,3];//Usage:[0,1,2][,,] = left, center, right.  [,,][0,1,2] = x, y, z
 
         static void Main(string[] args)
         {
@@ -36,6 +35,8 @@ namespace KinectSkeletonData
             {
                 // Turn on the skeleton stream to receive skeleton frames
                 sensor.SkeletonStream.Enable();
+
+
 
                 // Add an event handler to be called whenever there is new color frame data
                 sensor.SkeletonFrameReady += sensor_SkeletonFrameReady;
@@ -72,22 +73,51 @@ namespace KinectSkeletonData
 
         static void sensor_SkeletonFrameReady(object sender, SkeletonFrameReadyEventArgs e)
         {
-            if (reset)
+            if (calibrated<3)
             {
-                switch (state)
+                Skeleton[] calskeletons = new Skeleton[0];
+
+                using (SkeletonFrame skeletonFrame = e.OpenSkeletonFrame())
                 {
-                    case State.Calibrate:
-                        // Do calibrations
-
-                        if (calibaretion_complete)
-                            state = State.Run;
-                        break;
-                    case State.Run:
-                        // Alert user of slouching
-                        break;
+                    if (skeletonFrame != null)
+                    {
+                        calskeletons = new Skeleton[skeletonFrame.SkeletonArrayLength];
+                        skeletonFrame.CopySkeletonDataTo(calskeletons);
+                    }
                 }
+                foreach (Skeleton calskel in calskeletons)
+                {
+                    if (calskel.TrackingState == SkeletonTrackingState.Tracked)
+                    {
+                        Joint left = calskel.Joints[JointType.ShoulderLeft];
+                        Joint head = calskel.Joints[JointType.Head];
+                        Joint right = calskel.Joints[JointType.ShoulderRight];
+                        if (calibrated == 0)
+                        {
+                            calibration[0, 0] = left.Position.X;
+                            calibration[0, 1] = left.Position.Y;
+                            calibration[0, 2] = left.Position.Z;
+                        }
+                        else
+                        {
+                            for (int x = 0; x < calibration.GetLength(0); x += 1)
+                            {
+                                for (int y = 0; x < calibration.GetLength(1); y += 1)
+                                {
 
-                /*
+                                }
+                            }
+                        }
+                    }
+                }
+                calibrated++;
+            }
+
+
+
+
+            else if (reset)
+            {
                 Skeleton[] skeletons = new Skeleton[0];
 
                 using (SkeletonFrame skeletonFrame = e.OpenSkeletonFrame())
@@ -99,7 +129,7 @@ namespace KinectSkeletonData
                     }
                 }
 
-                Console.WriteLine(skeletons.Length.ToString() + " sekelton frames:");
+                Console.WriteLine(skeletons.Length.ToString() + " skeleton frames:");
 
                 foreach (Skeleton skel in skeletons)
                 {
@@ -116,7 +146,6 @@ namespace KinectSkeletonData
                     else
                         Console.WriteLine("Not tracked");
                 }
-                */
 
                 reset = false;
             }
