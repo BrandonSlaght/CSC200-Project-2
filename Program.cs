@@ -23,6 +23,11 @@ namespace KinectSkeletonData
         public static SkeletonPoint[,] calibrationPoints = new SkeletonPoint[3, 4];
         public static SkeletonPoint[] calibration = new SkeletonPoint[4];
 
+        public SkeletonPoint[] normalized;
+        public int k = 3;
+        public static ArrayList<float[]> slouch = new ArrayList<float[]>();
+        public static ArrayList<float[]> straight = new ArrayList<float[]>();
+
         static void Main(string[] args)
         {
             // Look through all sensors and start the first connected one.
@@ -118,7 +123,7 @@ namespace KinectSkeletonData
                 Joint head = ourSkel.Joints[JointType.Head];
                 Joint right = ourSkel.Joints[JointType.ShoulderRight];
                 Joint center = ourSkel.Joints[JointType.ShoulderCenter];
-                
+
                 // We then set the previousFrame and currentFrame
                 if (currentFrame[0] == null)
                 {
@@ -233,6 +238,138 @@ namespace KinectSkeletonData
             if (debug)
                 Console.WriteLine("DEBUG: " + text);
         }
+
+        static void normalize()
+        {
+
+            normalized = new SkeletonPoint[4];
+            //get points
+            SkeletonPoint head = new SkeletonPoint(currentFrame[2].X, currentFrame[2].Y, currentFrame[2].Z);
+            SkeletonPoint center = new SkeletonPoint(currentFrame[3].X, currentFrame[3].Y, currentFrame[3].Z);
+            SkeletonPoint left = new SkeletonPoint(currentFrame[0].X, currentFrame[0].Y, currentFrame[0].Z);
+            SkeletonPoint right = new SkeletonPoint(currentFrame[1].X, currentFrame[1].Y, currentFrame[1].Z);
+
+
+            float deltaX = center.X;
+            float deltaY = calibration[4].Y;
+            float deltaZ = center.Z;
+
+            //shift points to appropriate positions
+            head.X -= deltaX;
+            head.Y -= deltaY;
+            head.Z -= deltaZ;
+            center.X -= deltaX;
+            center.Y -= deltaY;
+            center.Z -= deltaZ;
+            left.X -= deltaX;
+            left.Y -= deltaY;
+            left.Z -= deltaZ;
+            right.X -= deltaX;
+            right.Y -= deltaY;
+            right.Z -= deltaZ;
+
+            //rotate
+            double angle = Math.Atan((left.Z - right.Z) / (left.X - right.X));
+
+            float tempX = head.X;
+            float tempZ = head.Z;
+            head.X = (float)((tempX * Math.Cos(angle)) + (tempZ * Math.Sin(angle)));
+            head.Z = (float)((tempX * Math.Sin(angle)) - (tempZ * Math.Cos(angle)));
+            tempX = center.X;
+            tempZ = center.Z;
+            center.X = (float)((tempX * Math.Cos(angle)) + (tempZ * Math.Sin(angle)));
+            center.Z = (float)((tempX * Math.Sin(angle)) - (tempZ * Math.Cos(angle)));
+            tempX = left.X;
+            tempZ = left.Z;
+            left.X = (float)((tempX * Math.Cos(angle)) + (tempZ * Math.Sin(angle)));
+            left.Z = (float)((tempX * Math.Sin(angle)) - (tempZ * Math.Cos(angle)));
+            tempX = right.X;
+            tempZ = right.Z;
+            right.X = (float)((tempX * Math.Cos(angle)) + (tempZ * Math.Sin(angle)));
+            right.Z = (float)((tempX * Math.Sin(angle)) - (tempZ * Math.Cos(angle)));
+
+            //scale
+
+            float cons = 2 / (Math.Sqrt(Math.Pow(left.X, 2) + Math.Pow(left.Y, 2) + Math.Pow(left.Z, 2)) + (Math.Sqrt(Math.Pow(right.X, 2) + Math.Pow(right.Y, 2) + Math.Pow(right.Z, 2))));
+            head.X = cons * head.X;
+            head.Y = cons * head.Y;
+            head.Z = cons * head.Z;
+            center.X = cons * center.X;
+            center.Y = cons * center.Y;
+            center.Z = cons * center.Z;
+            left.X = cons * left.X;
+            left.Y = cons * left.Y;
+            left.Z = cons * left.Z;
+            right.X = cons * right.X;
+            right.Y = cons * right.Y;
+            right.Z = cons * right.Z;
+
+
+            normalized[0] = left;
+            normalized[1] = right;
+            normalized[2] = head;
+            normalized[3] = center;
+        }
+
+        //guesses whether the given data point is slouch or not
+        /*public static boolean classify(int k)
+        {
+            float[] point = new float[12];
+
+            float[] distSlouch = new float[slouch.size()];
+            float[] distStraight = new float[straight.size()];
+
+            for (int i = 0; i < slouch.size(); i++)
+            {
+                distSlouch[i] = distance(point, slouch.get(i));
+            }
+            for (int i = 0; i < mad.size(); i++)
+            {
+                distMad[i] = distance(point, mad.get(i));
+            }
+            //technically could merge and use k-select
+            Arrays.sort(distHam);
+            Arrays.sort(distMad);
+
+            int countHam = 0;
+            int countMad = 0;
+            for (int i = 0; i < k; i++)
+            {
+                if (countHam >= distHam.length)
+                    countMad++;
+                else if (countMad >= distMad.length)
+                    countHam++;
+                else
+                {
+                    if (distHam[countHam] < distMad[countMad])
+                    {
+                        countHam++;
+                    }
+                    else if (distHam[countHam] > distMad[countMad])
+                    {
+                        countMad++;
+                    }
+                    else
+                    {
+                        if (Math.random() < .5)
+                        {
+                            countMad++;
+                        }
+                        else
+                        {
+                            countHam++;
+                        }
+                    }
+                }
+            }
+            if (countHam > countMad)
+                return true;
+            if (countMad > countHam)
+                return false;
+
+            return Math.random() < .5;
+
+        }*/
     }
 
 }
