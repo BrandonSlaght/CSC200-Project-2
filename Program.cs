@@ -325,65 +325,63 @@ namespace KinectSkeletonData
         }
 
         //guesses whether the given data point is slouch or not
-        /*public static bool classify(int k)
+        //returns true if slouch false if not
+        public static bool classify(int k)
         {
             float[] point = new float[12];
             //point[0]
 
-            float[] distSlouch = new float[slouch.size()];
-            float[] distStraight = new float[straight.size()];
+            float[] distSlouch = new float[slouch.Count];
+            float[] distStraight = new float[straight.Count];
 
-            for (int i = 0; i < slouch.size(); i++)
+            for (int i = 0; i < distSlouch.Length; i++)
             {
-                distSlouch[i] = distance(point, slouch.get(i));
+                distSlouch[i] = distance(point, slouch.ElementAt(i));
             }
-            for (int i = 0; i < mad.size(); i++)
+            for (int i = 0; i < distStraight.Length; i++)
             {
-                distMad[i] = distance(point, mad.get(i));
+                distStraight[i] = distance(point, straight.ElementAt(i));
             }
             //technically could merge and use k-select
-            Arrays.sort(distHam);
-            Arrays.sort(distMad);
+            Array.Sort(distSlouch);
+            Array.Sort(distStraight);
 
-            int countHam = 0;
-            int countMad = 0;
+            int countSlouch = 0;
+            int countStraight = 0;
             for (int i = 0; i < k; i++)
             {
-                if (countHam >= distHam.length)
-                    countMad++;
-                else if (countMad >= distMad.length)
-                    countHam++;
+                if (countSlouch >= distSlouch.Length)
+                    countStraight++;
+                else if (countStraight >= distStraight.Length)
+                    countSlouch++;
                 else
                 {
-                    if (distHam[countHam] < distMad[countMad])
+                    if (distSlouch[countSlouch] < distStraight[countStraight])
                     {
-                        countHam++;
-                    }
-                    else if (distHam[countHam] > distMad[countMad])
-                    {
-                        countMad++;
+                        countSlouch++;
                     }
                     else
                     {
-                        if (Math.random() < .5)
-                        {
-                            countMad++;
-                        }
-                        else
-                        {
-                            countHam++;
-                        }
+                        countStraight++;
                     }
                 }
             }
-            if (countHam > countMad)
+            if (countSlouch > countStraight)
                 return true;
-            if (countMad > countHam)
+            else
                 return false;
 
-            return Math.random() < .5;
+        }
 
-        }*/
+        public static float distance(float[] ar1, float[] ar2)
+        {
+            float sumsqrs = 0;
+            for (int i = 0; i < ar1.Length; i++)
+            {
+                sumsqrs += (float)Math.Pow(ar1[i] - ar2[i], 2);
+            }
+            return (float)Math.Sqrt(sumsqrs);
+        }
     }
 
 }
