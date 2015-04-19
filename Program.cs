@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 using System.Text;
 using System.IO;
@@ -23,10 +24,10 @@ namespace KinectSkeletonData
         public static SkeletonPoint[,] calibrationPoints = new SkeletonPoint[3, 4];
         public static SkeletonPoint[] calibration = new SkeletonPoint[4];
 
-        public SkeletonPoint[] normalized;
+        public static SkeletonPoint[] normalized;
         public int k = 3;
-        public static ArrayList<float[]> slouch = new ArrayList<float[]>();
-        public static ArrayList<float[]> straight = new ArrayList<float[]>();
+        public static List<float[]> slouch = new List<float[]>();
+        public static List<float[]> straight = new List<float[]>();
 
         static void Main(string[] args)
         {
@@ -244,10 +245,22 @@ namespace KinectSkeletonData
 
             normalized = new SkeletonPoint[4];
             //get points
-            SkeletonPoint head = new SkeletonPoint(currentFrame[2].X, currentFrame[2].Y, currentFrame[2].Z);
-            SkeletonPoint center = new SkeletonPoint(currentFrame[3].X, currentFrame[3].Y, currentFrame[3].Z);
-            SkeletonPoint left = new SkeletonPoint(currentFrame[0].X, currentFrame[0].Y, currentFrame[0].Z);
-            SkeletonPoint right = new SkeletonPoint(currentFrame[1].X, currentFrame[1].Y, currentFrame[1].Z);
+            SkeletonPoint head = new SkeletonPoint();
+            head.X = currentFrame[2].X;
+            head.Y = currentFrame[2].Y;
+            head.Z = currentFrame[2].Z;
+            SkeletonPoint center = new SkeletonPoint();
+            center.X = currentFrame[3].X;
+            center.Y = currentFrame[3].Y;
+            center.Z = currentFrame[3].Z;
+            SkeletonPoint left = new SkeletonPoint();
+            left.X = currentFrame[0].X;
+            left.Y = currentFrame[0].Y;
+            left.Z = currentFrame[0].Z;
+            SkeletonPoint right = new SkeletonPoint();
+            right.X = currentFrame[1].X;
+            right.Y = currentFrame[1].Y;
+            right.Z = currentFrame[1].Z;
 
 
             float deltaX = center.X;
@@ -290,7 +303,7 @@ namespace KinectSkeletonData
 
             //scale
 
-            float cons = 2 / (Math.Sqrt(Math.Pow(left.X, 2) + Math.Pow(left.Y, 2) + Math.Pow(left.Z, 2)) + (Math.Sqrt(Math.Pow(right.X, 2) + Math.Pow(right.Y, 2) + Math.Pow(right.Z, 2))));
+            float cons = (float)(2 / (Math.Sqrt(Math.Pow(left.X, 2) + Math.Pow(left.Y, 2) + Math.Pow(left.Z, 2)) + (Math.Sqrt(Math.Pow(right.X, 2) + Math.Pow(right.Y, 2) + Math.Pow(right.Z, 2)))));
             head.X = cons * head.X;
             head.Y = cons * head.Y;
             head.Z = cons * head.Z;
@@ -312,9 +325,10 @@ namespace KinectSkeletonData
         }
 
         //guesses whether the given data point is slouch or not
-        public static boolean classify(int k)
+        /*public static bool classify(int k)
         {
             float[] point = new float[12];
+            //point[0]
 
             float[] distSlouch = new float[slouch.size()];
             float[] distStraight = new float[straight.size()];
@@ -369,7 +383,7 @@ namespace KinectSkeletonData
 
             return Math.random() < .5;
 
-        }
+        }*/
     }
 
 }
