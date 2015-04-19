@@ -12,12 +12,16 @@ namespace KinectSkeletonData
 
     class Program
     {
+        public static bool debug = true;
         public static State state = State.Calibrate;
         public static KinectSensor sensor;
         public static Timer timer;
         public static bool reset = true;
         public static int calibrated = 0;
-        public static float[,] calibration = new float[3, 3];//Usage:[0,1,2][,,] = left, center, right.  [,,][0,1,2] = x, y, z
+        public static SkeletonPoint[] previousFrame = new SkeletonPoint[3];
+        public static SkeletonPoint[] currentFrame = new SkeletonPoint[3];
+        public static SkeletonPoint[,] calibrationPoints = new SkeletonPoint[3, 3];
+        public static SkeletonPoint[] calibration = new SkeletonPoint[3];
 
         static void Main(string[] args)
         {
@@ -43,7 +47,7 @@ namespace KinectSkeletonData
                 // Start the sensor and the timer
                 try
                 {
-                    timer = new Timer(1000);
+                    timer = new Timer(2000);
                     timer.AutoReset = true;
                     timer.Elapsed += new ElapsedEventHandler(timer_Elapsed);
                     timer.Start();
@@ -57,9 +61,10 @@ namespace KinectSkeletonData
             }
 
             if (null == sensor)
-            {
                 Console.Write("No sensor.");
-            }
+
+            if (state == State.Calibrate)
+                Console.WriteLine("Calibrating, please sit still with good posture.");
 
             Console.ReadKey();
         }
@@ -74,6 +79,7 @@ namespace KinectSkeletonData
             // We only use the frame if the timer reset (this is to limit the frame rate)
             if (reset)
             {
+                Debug("Next Frame Ready");
                 // Here we get all 6 skeletons (even if they are not all being used)
                 Skeleton[] skeletons = new Skeleton[0];
                 using (SkeletonFrame skeletonFrame = e.OpenSkeletonFrame())
@@ -85,82 +91,85 @@ namespace KinectSkeletonData
                     }
                 }
 
+                // Get the skeleton we want
+                Skeleton ourSkel = null;
+                Skeleton ourOtherSkel = null;
+                foreach (Skeleton skel in skeletons)
+                {
+                    if (skel.TrackingState == SkeletonTrackingState.Tracked)
+                        if (ourSkel == null)
+                            ourSkel = skel;
+                        else
+                            ourOtherSkel = skel;
+                }
+                if (ourSkel == null)
+                {
+                    Debug("No tracked skeleton.");
+                    reset = true;
+                    return;
+                }
+                else
+                {
+                    Debug("skeleton state = " + ourSkel.TrackingState);
+                }
+
+                // Get the joints we want
+                Joint left = ourSkel.Joints[JointType.ShoulderLeft];
+                Joint head = ourSkel.Joints[JointType.Head];
+                Joint right = ourSkel.Joints[JointType.ShoulderRight];
+                
+                // We then set the previousFrame and currentFrame
+                if (currentFrame[0] == null)
+                {
+                    // If this is the first frame, then we can't set the previousFrame
+                    currentFrame[0] = left.Position;
+                    currentFrame[1] = right.Position;
+                    currentFrame[2] = head.Position;
+                    // We will wait until the next frame so we have a previous frame
+                    return;
+                }
+                previousFrame[0] = currentFrame[0];
+                previousFrame[1] = currentFrame[1];
+                previousFrame[2] = currentFrame[2];
+                currentFrame[0] = left.Position;
+                currentFrame[1] = right.Position;
+                currentFrame[2] = head.Position;
+
                 // What we do with the skeleton data is determined by the state the program is in
                 switch (state)
                 {
                     // If the program is calibrating, we will get the calibration data from this frame
                     case State.Calibrate:
-                        Console.WriteLine("skeleton state = " + skeletons[0].TrackingState);
-                        if (skeletons[0].TrackingState != SkeletonTrackingState.Tracked)
+                        float totalDist = 0;
+                        totalDist += Distance(previousFrame[0], currentFrame[0]);
+                        totalDist += Distance(previousFrame[1], currentFrame[1]);
+                        totalDist += Distance(previousFrame[2], currentFrame[2]);
+                        Debug("Total dist: " + totalDist);
+                        if (totalDist < .005f)
                         {
-                            reset = true;
-                            break;
-                        }
-                        Console.WriteLine("calibrating, please sit still with good posture");
-                        if (calibrated < 3)
-                        {
-                            Skeleton skel = skeletons[0];
-                            if (skel.TrackingState == SkeletonTrackingState.Tracked)
+                            if (calibrated < 3)
                             {
-                                Joint left = skel.Joints[JointType.ShoulderLeft];
-                                Joint head = skel.Joints[JointType.Head];
-                                Joint right = skel.Joints[JointType.ShoulderRight];
-                                if (calibrated == 0)
-                                {
-                                    calibration[0, 0] = left.Position.X;
-                                    calibration[0, 1] = left.Position.Y;
-                                    calibration[0, 2] = left.Position.Z;
-                                    calibration[1, 0] = head.Position.X;
-                                    calibration[1, 1] = head.Position.Y;
-                                    calibration[1, 2] = head.Position.Z;
-                                    calibration[2, 0] = right.Position.X;
-                                    calibration[2, 1] = right.Position.Y;
-                                    calibration[2, 2] = right.Position.Z;
-                                    Console.WriteLine("calibration 1");
-                                }
-                                else
-                                {
-                                    Console.WriteLine(left.Position.X);
-                                    Console.WriteLine(right.Position.X);
-                                    Console.WriteLine(head.Position.X);
-                                    if (Math.Abs(left.Position.X - calibration[0, 0]) < 50)
-                                    {
-                                        calibration[0, 0] = (left.Position.X + calibration[0, 0]) / 2;
-                                        calibration[0, 1] = (left.Position.Y + calibration[0, 1]) / 2;
-                                        calibration[0, 2] = (left.Position.Z + calibration[0, 2]) / 2;
-                                    }
-                                    else
-                                    {
-                                        calibrated = 0;
-                                    }
-                                    if (Math.Abs(head.Position.X - calibration[1, 0]) < 50)
-                                    {
-                                        calibration[1, 0] = (head.Position.X + calibration[1, 0]) / 2;
-                                        calibration[1, 1] = (head.Position.Y + calibration[1, 1]) / 2;
-                                        calibration[1, 2] = (head.Position.Z + calibration[1, 2]) / 2;
-                                    }
-                                    else
-                                    {
-                                        calibrated = 0;
-                                    }
-                                    if (Math.Abs(right.Position.X - calibration[0, 0]) < 50)
-                                    {
-                                        calibration[2, 0] = (right.Position.X + calibration[2, 0]) / 2;
-                                        calibration[2, 1] = (right.Position.Y + calibration[2, 1]) / 2;
-                                        calibration[2, 2] = (right.Position.Z + calibration[2, 2]) / 2;
-                                    }
-                                    else
-                                    {
-                                        calibrated = 0;
-                                    }
-                                }
+                                Debug("Calibration frame: " + (calibrated + 1) + "/3");
+                                calibrationPoints[calibrated, 0] = left.Position;
+                                calibrationPoints[calibrated, 1] = right.Position;
+                                calibrationPoints[calibrated, 2] = head.Position;
+                                calibrated++;
                             }
-                            calibrated++;
+                            if (calibrated == 3)
+                            {
+                                calibration[0] = Center(calibrationPoints[0, 0], calibrationPoints[1, 0], calibrationPoints[2, 0]);
+                                calibration[1] = Center(calibrationPoints[0, 1], calibrationPoints[1, 1], calibrationPoints[2, 1]);
+                                calibration[2] = Center(calibrationPoints[0, 2], calibrationPoints[1, 2], calibrationPoints[2, 2]);
+                                state = State.Run;
+                                Console.WriteLine("Calibration complete.");
+                            }
                         }
-                        state = State.Run;
+                        else
+                            calibrated = 0;
+
                         break;
 
-                    // If the program is running, we will determin if the use has good or bad posture
+                    // If the program is running, we will determin if the user has good or bad posture
                     case State.Run:
                         break;
 
@@ -174,7 +183,6 @@ namespace KinectSkeletonData
                             if (skel.TrackingState == SkeletonTrackingState.Tracked)
                             {
                                 //Console.WriteLine("tracked");
-                                Joint head = skel.Joints[JointType.Head];
                                 Console.WriteLine(head.Position.X.ToString() + head.Position.Y.ToString() + head.Position.Z.ToString());
                             }
                             else if (skel.TrackingState == SkeletonTrackingState.PositionOnly)
@@ -192,5 +200,32 @@ namespace KinectSkeletonData
                 reset = false;
             }
         }
+
+        public static float Distance(SkeletonPoint point1, SkeletonPoint point2)
+        {
+            float x = point1.X - point2.X;
+            float y = point2.Y - point2.Y;
+            float z = point2.Z - point2.Z;
+            return (float)Math.Sqrt(Math.Pow(x, 2) + Math.Pow(y, 2) + Math.Pow(z, 2));
+        }
+
+        public static SkeletonPoint Center(SkeletonPoint point1, SkeletonPoint point2, SkeletonPoint point3)
+        {
+            float x = (point1.X + point2.X + point3.X) / 3;
+            float y = (point2.Y + point2.Y + point3.Y) / 3;
+            float z = (point2.Z + point2.Z + point3.Z) / 3;
+            SkeletonPoint center = new SkeletonPoint();
+            center.X = x;
+            center.Y = y;
+            center.Z = z;
+            return center;
+        }
+
+        public static void Debug(string text)
+        {
+            if (debug)
+                Console.WriteLine("DEBUG: " + text);
+        }
     }
+
 }
