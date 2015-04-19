@@ -18,10 +18,10 @@ namespace KinectSkeletonData
         public static Timer timer;
         public static bool reset = true;
         public static int calibrated = 0;
-        public static SkeletonPoint[] previousFrame = new SkeletonPoint[3];
-        public static SkeletonPoint[] currentFrame = new SkeletonPoint[3];
-        public static SkeletonPoint[,] calibrationPoints = new SkeletonPoint[3, 3];
-        public static SkeletonPoint[] calibration = new SkeletonPoint[3];
+        public static SkeletonPoint[] previousFrame = new SkeletonPoint[4];
+        public static SkeletonPoint[] currentFrame = new SkeletonPoint[4];
+        public static SkeletonPoint[,] calibrationPoints = new SkeletonPoint[3, 4];
+        public static SkeletonPoint[] calibration = new SkeletonPoint[4];
 
         static void Main(string[] args)
         {
@@ -117,6 +117,7 @@ namespace KinectSkeletonData
                 Joint left = ourSkel.Joints[JointType.ShoulderLeft];
                 Joint head = ourSkel.Joints[JointType.Head];
                 Joint right = ourSkel.Joints[JointType.ShoulderRight];
+                Joint center = ourSkel.Joints[JointType.ShoulderCenter];
                 
                 // We then set the previousFrame and currentFrame
                 if (currentFrame[0] == null)
@@ -125,15 +126,18 @@ namespace KinectSkeletonData
                     currentFrame[0] = left.Position;
                     currentFrame[1] = right.Position;
                     currentFrame[2] = head.Position;
+                    currentFrame[3] = center.Position;
                     // We will wait until the next frame so we have a previous frame
                     return;
                 }
                 previousFrame[0] = currentFrame[0];
                 previousFrame[1] = currentFrame[1];
                 previousFrame[2] = currentFrame[2];
+                previousFrame[3] = currentFrame[3];
                 currentFrame[0] = left.Position;
                 currentFrame[1] = right.Position;
                 currentFrame[2] = head.Position;
+                currentFrame[3] = center.Position;
 
                 // What we do with the skeleton data is determined by the state the program is in
                 switch (state)
@@ -144,6 +148,7 @@ namespace KinectSkeletonData
                         totalDist += Distance(previousFrame[0], currentFrame[0]);
                         totalDist += Distance(previousFrame[1], currentFrame[1]);
                         totalDist += Distance(previousFrame[2], currentFrame[2]);
+                        totalDist += Distance(previousFrame[3], currentFrame[3]);
                         Debug("Total dist: " + totalDist);
                         if (totalDist < .005f)
                         {
@@ -153,6 +158,7 @@ namespace KinectSkeletonData
                                 calibrationPoints[calibrated, 0] = left.Position;
                                 calibrationPoints[calibrated, 1] = right.Position;
                                 calibrationPoints[calibrated, 2] = head.Position;
+                                calibrationPoints[calibrated, 3] = center.Position;
                                 calibrated++;
                             }
                             if (calibrated == 3)
@@ -160,6 +166,7 @@ namespace KinectSkeletonData
                                 calibration[0] = Center(calibrationPoints[0, 0], calibrationPoints[1, 0], calibrationPoints[2, 0]);
                                 calibration[1] = Center(calibrationPoints[0, 1], calibrationPoints[1, 1], calibrationPoints[2, 1]);
                                 calibration[2] = Center(calibrationPoints[0, 2], calibrationPoints[1, 2], calibrationPoints[2, 2]);
+                                calibration[3] = Center(calibrationPoints[0, 3], calibrationPoints[1, 3], calibrationPoints[2, 3]);
                                 state = State.Run;
                                 Console.WriteLine("Calibration complete.");
                             }
