@@ -312,7 +312,7 @@ namespace KinectSkeletonData
         }
 
         //guesses whether the given data point is slouch or not
-        /*public static boolean classify(int k)
+        public static boolean classify(int k)
         {
             float[] point = new float[12];
 
@@ -369,7 +369,7 @@ namespace KinectSkeletonData
 
             return Math.random() < .5;
 
-        }*/
+        }
     }
 
 }
