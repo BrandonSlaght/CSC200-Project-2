@@ -198,17 +198,6 @@ namespace KinectSkeletonData
                     // If the program is running, we will determin if the user has good or bad posture
                     case State.Run:
                         normalize();
-                        float diff = 0;
-                        diff += Distance(normalizedCalibration[0], normalized[0]);
-                        diff += Distance(normalizedCalibration[1], normalized[1]);
-                        //diff += Distance(normalizedCalibration[2], normalized[2]);
-                        diff += Distance(normalizedCalibration[3], normalized[3]);
-                        /*Console.WriteLine(diff.ToString());
-                        Console.WriteLine(normalized[3].Y.ToString());
-                        string data = PointToString(normalized[0]) + " " + PointToString(normalized[1]) + " " + PointToString(normalized[2]) + " " + PointToString(normalized[3]);
-                        File.WriteAllText("C:\\Users\\Marysia\\Desktop\\point.txt", data);
-                        Console.WriteLine("Calibration complete.");
-                        */
                         classify();
                         break;
 
@@ -247,7 +236,7 @@ namespace KinectSkeletonData
             float z = point2.Z - point2.Z;
             return (float)Math.Sqrt(Math.Pow(x, 2) + Math.Pow(y, 2) + Math.Pow(z, 2));
         }
-
+        // Gets the center point between three points (average).
         public static SkeletonPoint Center(SkeletonPoint point1, SkeletonPoint point2, SkeletonPoint point3)
         {
             float x = (point1.X + point2.X + point3.X) / 3;
@@ -260,6 +249,7 @@ namespace KinectSkeletonData
             return center;
         }
 
+        // Writes debug console text when the debug flag is set to true
         public static void Debug(string text)//debugging code, should be disabled
         {
             if (debug)
@@ -354,7 +344,7 @@ namespace KinectSkeletonData
         //returns true if slouch false if not
         public static void classify()
         {
-            Console.WriteLine("" + slouch.Count + ", " + straight.Count);
+            //collect normalized joint data and put into float array to be compared
             float[] point = new float[12];
             point[0] = normalized[0].X;
             point[1] = normalized[0].Y;
@@ -372,22 +362,27 @@ namespace KinectSkeletonData
             float[] distSlouch = new float[slouch.Count];
             float[] distStraight = new float[straight.Count];
 
+            //fill distSlouch with the distances between point and the postures classified as slouch
             for (int i = 0; i < distSlouch.Length; i++)
             {
                 distSlouch[i] = distance(point, slouch.ElementAt(i));
             }
+            //fill distStraight with the distances between point and the postures classified as upright (not slouching)
             for (int i = 0; i < distStraight.Length; i++)
             {
                 distStraight[i] = distance(point, straight.ElementAt(i));
             }
-            //technically could merge and use k-select
+            
             Array.Sort(distSlouch);
             Array.Sort(distStraight);
 
+            //if point too far off, ignore
             float threshold = 20;
 
             if (distSlouch[0] > threshold && distStraight[0] > threshold)
                 return;
+
+            //count the number of k nearest points classified as slouching or not slouching
             int countSlouch = 0;
             int countStraight = 0;
             for (int i = 0; i < k; i++)
@@ -408,6 +403,7 @@ namespace KinectSkeletonData
                     }
                 }
             }
+            //print feedback to user if position has changed
             if ((countSlouch > countStraight) && !slouchState)
             {
                 slouchState = true;
@@ -421,7 +417,7 @@ namespace KinectSkeletonData
 
         }
 
-        public static float distance(float[] ar1, float[] ar2)//Finds the distance between two joints
+        public static float distance(float[] ar1, float[] ar2)//Finds the sum of euclidean distance between two sets of joints
         {
             float sumsqrs = 0;
             for (int i = 0; i < ar1.Length; i++)
