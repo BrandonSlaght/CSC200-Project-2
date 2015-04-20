@@ -186,6 +186,8 @@ namespace KinectSkeletonData
                                 normalizedCalibration = normalized;
                                 state = State.Run;
                                 timer.Interval = 1000;
+                                Console.WriteLine("Calibration complete.");
+                                state = State.Run;
                             }
                         }
                         else
