@@ -24,7 +24,8 @@ namespace KinectSkeletonData
         public static SkeletonPoint[,] calibrationPoints = new SkeletonPoint[3, 4];
         public static SkeletonPoint[] calibration = new SkeletonPoint[4];
 
-        public static SkeletonPoint[] normalized;
+        public static SkeletonPoint[] normalizedCalibration = new SkeletonPoint[4];
+        public static SkeletonPoint[] normalized = new SkeletonPoint[4];
         public int k = 3;
         public static List<float[]> slouch = new List<float[]>();
         public static List<float[]> straight = new List<float[]>();
@@ -173,8 +174,15 @@ namespace KinectSkeletonData
                                 calibration[1] = Center(calibrationPoints[0, 1], calibrationPoints[1, 1], calibrationPoints[2, 1]);
                                 calibration[2] = Center(calibrationPoints[0, 2], calibrationPoints[1, 2], calibrationPoints[2, 2]);
                                 calibration[3] = Center(calibrationPoints[0, 3], calibrationPoints[1, 3], calibrationPoints[2, 3]);
-                                state = State.Run;
+                                currentFrame[0] = calibration[0];
+                                currentFrame[1] = calibration[1];
+                                currentFrame[2] = calibration[2];
+                                currentFrame[3] = calibration[3];
+                                normalize();
+                                normalizedCalibration = normalized;
+                                Console.WriteLine(normalized[3].Y);
                                 Console.WriteLine("Calibration complete.");
+                                state = State.Run;
                             }
                         }
                         else
@@ -184,6 +192,14 @@ namespace KinectSkeletonData
 
                     // If the program is running, we will determin if the user has good or bad posture
                     case State.Run:
+                        normalize();
+                        float diff = 0;
+                        diff += Distance(normalizedCalibration[0], normalized[0]);
+                        diff += Distance(normalizedCalibration[1], normalized[1]);
+                        //diff += Distance(normalizedCalibration[2], normalized[2]);
+                        diff += Distance(normalizedCalibration[3], normalized[3]);
+                        Console.WriteLine(diff.ToString());
+                        Console.WriteLine(normalized[3].Y.ToString());
                         break;
 
                     // This state is for testing.  Here we put whatever we want and it will not interfere with the rest of the program.
@@ -264,7 +280,7 @@ namespace KinectSkeletonData
 
 
             float deltaX = center.X;
-            float deltaY = calibration[4].Y;
+            float deltaY = calibration[3].Y;
             float deltaZ = center.Z;
 
             //shift points to appropriate positions
