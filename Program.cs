@@ -24,13 +24,16 @@ namespace KinectSkeletonData
         public static SkeletonPoint[,] calibrationPoints = new SkeletonPoint[3, 4];
         public static SkeletonPoint[] calibration = new SkeletonPoint[4];
 
-        public static SkeletonPoint[] normalized;
-        public int k = 3;
+        public static SkeletonPoint[] normalizedCalibration = new SkeletonPoint[4];
+        public static SkeletonPoint[] normalized = new SkeletonPoint[4];
+        public static int k = 3;
         public static List<float[]> slouch = new List<float[]>();
         public static List<float[]> straight = new List<float[]>();
+        public static bool slouchState = true;
 
         static void Main(string[] args)
         {
+            ReadFromFile();
             // Look through all sensors and start the first connected one.
             // This requires that a Kinect is connected at the time of app startup.
             foreach (var potentialSensor in KinectSensor.KinectSensors)
@@ -58,6 +61,8 @@ namespace KinectSkeletonData
                     timer.Elapsed += new ElapsedEventHandler(timer_Elapsed);
                     timer.Start();
                     sensor.Start();
+                    sensor.DepthStream.Range = DepthRange.Near;
+                    sensor.SkeletonStream.EnableTrackingInNearRange = true;
                     sensor.SkeletonStream.TrackingMode = SkeletonTrackingMode.Seated;
                 }
                 catch (IOException)
@@ -156,7 +161,7 @@ namespace KinectSkeletonData
                         totalDist += Distance(previousFrame[2], currentFrame[2]);
                         totalDist += Distance(previousFrame[3], currentFrame[3]);
                         Debug("Total dist: " + totalDist);
-                        if (totalDist < .005f)
+                        if (totalDist < .0075f)
                         {
                             if (calibrated < 3)
                             {
@@ -173,8 +178,14 @@ namespace KinectSkeletonData
                                 calibration[1] = Center(calibrationPoints[0, 1], calibrationPoints[1, 1], calibrationPoints[2, 1]);
                                 calibration[2] = Center(calibrationPoints[0, 2], calibrationPoints[1, 2], calibrationPoints[2, 2]);
                                 calibration[3] = Center(calibrationPoints[0, 3], calibrationPoints[1, 3], calibrationPoints[2, 3]);
+                                currentFrame[0] = calibration[0];
+                                currentFrame[1] = calibration[1];
+                                currentFrame[2] = calibration[2];
+                                currentFrame[3] = calibration[3];
+                                normalize();
+                                normalizedCalibration = normalized;
                                 state = State.Run;
-                                Console.WriteLine("Calibration complete.");
+                                timer.Interval = 1000;
                             }
                         }
                         else
@@ -184,6 +195,19 @@ namespace KinectSkeletonData
 
                     // If the program is running, we will determin if the user has good or bad posture
                     case State.Run:
+                        normalize();
+                        float diff = 0;
+                        diff += Distance(normalizedCalibration[0], normalized[0]);
+                        diff += Distance(normalizedCalibration[1], normalized[1]);
+                        //diff += Distance(normalizedCalibration[2], normalized[2]);
+                        diff += Distance(normalizedCalibration[3], normalized[3]);
+                        /*Console.WriteLine(diff.ToString());
+                        Console.WriteLine(normalized[3].Y.ToString());
+                        string data = PointToString(normalized[0]) + " " + PointToString(normalized[1]) + " " + PointToString(normalized[2]) + " " + PointToString(normalized[3]);
+                        File.WriteAllText("C:\\Users\\Marysia\\Desktop\\point.txt", data);
+                        Console.WriteLine("Calibration complete.");
+                        */
+                        classify();
                         break;
 
                     // This state is for testing.  Here we put whatever we want and it will not interfere with the rest of the program.
@@ -264,7 +288,7 @@ namespace KinectSkeletonData
 
 
             float deltaX = center.X;
-            float deltaY = calibration[4].Y;
+            float deltaY = calibration[3].Y;
             float deltaZ = center.Z;
 
             //shift points to appropriate positions
@@ -326,10 +350,22 @@ namespace KinectSkeletonData
 
         //guesses whether the given data point is slouch or not
         //returns true if slouch false if not
-        public static bool classify(int k)
+        public static void classify()
         {
+            Console.WriteLine("" + slouch.Count + ", " + straight.Count);
             float[] point = new float[12];
-            //point[0]
+            point[0] = normalized[0].X;
+            point[1] = normalized[0].Y;
+            point[2] = normalized[0].Z;
+            point[3] = normalized[1].X;
+            point[4] = normalized[1].Y;
+            point[5] = normalized[1].Z;
+            point[6] = normalized[2].X;
+            point[7] = normalized[2].Y;
+            point[8] = normalized[2].Z;
+            point[9] = normalized[3].X;
+            point[10] = normalized[3].Y;
+            point[11] = normalized[3].Z;
 
             float[] distSlouch = new float[slouch.Count];
             float[] distStraight = new float[straight.Count];
@@ -346,6 +382,10 @@ namespace KinectSkeletonData
             Array.Sort(distSlouch);
             Array.Sort(distStraight);
 
+            float threshold = 20;
+
+            if (distSlouch[0] > threshold && distStraight[0] > threshold)
+                return;
             int countSlouch = 0;
             int countStraight = 0;
             for (int i = 0; i < k; i++)
@@ -366,10 +406,16 @@ namespace KinectSkeletonData
                     }
                 }
             }
-            if (countSlouch > countStraight)
-                return true;
-            else
-                return false;
+            if ((countSlouch > countStraight) && !slouchState)
+            {
+                slouchState = true;
+                Console.WriteLine("You're slouching!");
+            }
+            else if ((countSlouch < countStraight) && slouchState)
+            {
+                slouchState = false;
+                Console.WriteLine("You're upright!");
+            }
 
         }
 
@@ -381,6 +427,40 @@ namespace KinectSkeletonData
                 sumsqrs += (float)Math.Pow(ar1[i] - ar2[i], 2);
             }
             return (float)Math.Sqrt(sumsqrs);
+        }
+
+        public static string PointToString(SkeletonPoint point)
+        {
+            return point.X + " " + point.Y + " " + point.Z;
+        }
+
+        public static void ReadFromFile()
+        {
+            StreamReader sr = new StreamReader("points.txt");
+            String line;
+            while ((line = sr.ReadLine()) != null)
+            {
+
+                string[] splitLine = line.Split(null);
+                if (splitLine[0] == "0")
+                {
+                    float[] floatsToAdd = new float[12];
+                    for (int i = 0; i < 12; i++)
+                    {
+                        floatsToAdd[i] = float.Parse(splitLine[i + 1]);
+                    }
+                    slouch.Add(floatsToAdd);
+                }
+                else
+                {
+                    float[] floatsToAdd = new float[12];
+                    for (int i = 0; i < 12; i++)
+                    {
+                        floatsToAdd[i] = float.Parse(splitLine[i + 1]);
+                    }
+                    straight.Add(floatsToAdd);
+                }
+            }
         }
     }
 
