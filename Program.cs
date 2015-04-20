@@ -33,7 +33,7 @@ namespace KinectSkeletonData
 
         static void Main(string[] args)
         {
-            ReadFromFile();
+            ReadFromFile(); //read the training points and fill the array lists used for the K-NN classification
             // Look through all sensors and start the first connected one.
             // This requires that a Kinect is connected at the time of app startup.
             foreach (var potentialSensor in KinectSensor.KinectSensors)
@@ -67,12 +67,12 @@ namespace KinectSkeletonData
                 }
                 catch (IOException)
                 {
-                    Console.Write("Sensor failed to start.");
+                    Console.WriteLine("Sensor failed to start.");
                 }
             }
 
             if (null == sensor)
-                Console.Write("No sensor.");
+                Console.WriteLine("No sensor.");
 
             if (state == State.Calibrate)
                 Console.WriteLine("Calibrating, please sit still with good posture.");
@@ -116,7 +116,7 @@ namespace KinectSkeletonData
                 if (ourSkel == null)
                 {
                     Debug("No tracked skeleton.");
-                    reset = true;
+                    reset = true;//try to find a skeleton again
                     return;
                 }
                 else
@@ -155,13 +155,13 @@ namespace KinectSkeletonData
                 {
                     // If the program is calibrating, we will get the calibration data from this frame
                     case State.Calibrate:
-                        float totalDist = 0;
+                        float totalDist = 0;//use distance formulas to get real distances between joints
                         totalDist += Distance(previousFrame[0], currentFrame[0]);
                         totalDist += Distance(previousFrame[1], currentFrame[1]);
                         totalDist += Distance(previousFrame[2], currentFrame[2]);
                         totalDist += Distance(previousFrame[3], currentFrame[3]);
                         Debug("Total dist: " + totalDist);
-                        if (totalDist < .0075f)
+                        if (totalDist < .0075f)//this determines if the person has mooved too much or not
                         {
                             if (calibrated < 3)
                             {
@@ -174,7 +174,7 @@ namespace KinectSkeletonData
                             }
                             if (calibrated == 3)
                             {
-                                calibration[0] = Center(calibrationPoints[0, 0], calibrationPoints[1, 0], calibrationPoints[2, 0]);
+                                calibration[0] = Center(calibrationPoints[0, 0], calibrationPoints[1, 0], calibrationPoints[2, 0]);//normalize points here
                                 calibration[1] = Center(calibrationPoints[0, 1], calibrationPoints[1, 1], calibrationPoints[2, 1]);
                                 calibration[2] = Center(calibrationPoints[0, 2], calibrationPoints[1, 2], calibrationPoints[2, 2]);
                                 calibration[3] = Center(calibrationPoints[0, 3], calibrationPoints[1, 3], calibrationPoints[2, 3]);
@@ -240,7 +240,7 @@ namespace KinectSkeletonData
             }
         }
 
-        public static float Distance(SkeletonPoint point1, SkeletonPoint point2)
+        public static float Distance(SkeletonPoint point1, SkeletonPoint point2)//helper method for getting distance between points
         {
             float x = point1.X - point2.X;
             float y = point2.Y - point2.Y;
@@ -260,13 +260,13 @@ namespace KinectSkeletonData
             return center;
         }
 
-        public static void Debug(string text)
+        public static void Debug(string text)//debugging code, should be disabled
         {
             if (debug)
                 Console.WriteLine("DEBUG: " + text);
         }
 
-        static void normalize()
+        static void normalize()//method that normalizes the current points around the center joint
         {
 
             normalized = new SkeletonPoint[4];
@@ -421,7 +421,7 @@ namespace KinectSkeletonData
 
         }
 
-        public static float distance(float[] ar1, float[] ar2)
+        public static float distance(float[] ar1, float[] ar2)//Finds the distance between two joints
         {
             float sumsqrs = 0;
             for (int i = 0; i < ar1.Length; i++)
@@ -436,7 +436,7 @@ namespace KinectSkeletonData
             return point.X + " " + point.Y + " " + point.Z;
         }
 
-        public static void ReadFromFile()
+        public static void ReadFromFile()//reads the training points to the arrays used for K-NN
         {
             StreamReader sr = new StreamReader("points.txt");
             String line;
